@@ -1,0 +1,10 @@
+DROP SCHEMA IF EXISTS goit CASCADE;
+
+CREATE SCHEMA goit;
+
+CREATE TABLE goit.note
+(
+    id      BIGINT AUTO_INCREMENT PRIMARY KEY,
+    title   VARCHAR(50) NOT NULL,
+    content TEXT NOT NULL
+);

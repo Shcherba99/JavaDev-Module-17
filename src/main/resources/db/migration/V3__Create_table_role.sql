@@ -1,0 +1,8 @@
+DROP TABLE IF EXISTS goit.role;
+
+CREATE TABLE goit.role
+(
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE
+);
+
