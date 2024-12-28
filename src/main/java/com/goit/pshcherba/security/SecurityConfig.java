@@ -1,21 +1,18 @@
 package com.goit.pshcherba.security;
 
 
-import com.goit.pshcherba.entity.User;
-import com.goit.pshcherba.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.provisioning.JdbcUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
-import java.util.stream.Collectors;
+import javax.sql.DataSource;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
@@ -27,7 +24,6 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @Configuration
 @RequiredArgsConstructor
 public class SecurityConfig {
-    private final UserRepository userRepository;
 
 
     /**
@@ -42,27 +38,28 @@ public class SecurityConfig {
 
 
     /**
-     * Defines a bean for the {@link UserDetailsService}, which loads user-specific data.
-     * It retrieves a {@link User} by username from the database and maps roles to granted authorities.
+     * Configures and returns a {@link UserDetailsService} implementation using JDBC.
+     * This method creates a {@link JdbcUserDetailsManager} that loads user details (username, password, and enabled status)
+     * and authorities (roles) from the database.
      *
-     * @return a lambda implementation of {@link UserDetailsService}.
-     * @throws UsernameNotFoundException if the user is not found in the database.
+     * The {@link JdbcUserDetailsManager} is configured with SQL queries to retrieve the user and role data
+     * required by Spring Security during the authentication process.
+     *
+     * @param dataSource The DataSource that provides the database connection.
+     * @return A configured {@link UserDetailsService} instance for Spring Security.
      */
     @Bean
-    public UserDetailsService userDetailsService() {
-        return username -> {
-            User user = userRepository
-                    .findByName(username)
-                    .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
-
-            return new org.springframework.security.core.userdetails.User(
-                    user.getName(),
-                    user.getPassword(),
-                    user.getRoles().stream()
-                            .map(role -> new SimpleGrantedAuthority(role.getName()))
-                            .collect(Collectors.toList())
-            );
-        };
+    public UserDetailsService userDetailsService(DataSource dataSource) {
+        JdbcUserDetailsManager userDetailsManager = new JdbcUserDetailsManager(dataSource);
+        userDetailsManager.setUsersByUsernameQuery("select name, password, enabled from goit.userinfo where name=?");
+        userDetailsManager.setAuthoritiesByUsernameQuery(
+                "SELECT goit.userinfo.name username, goit.role.name authority " +
+                        "FROM goit.userinfo " +
+                        "JOIN goit.user_role ON goit.userinfo.id = goit.user_role.user_id " +
+                        "JOIN goit.role ON goit.user_role.role_id = goit.role.id " +
+                        "WHERE goit.userinfo.name = ?"
+        );
+        return userDetailsManager;
     }
 
 
